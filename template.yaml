@@ -1,0 +1,119 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  app: openshift-angular-demo
+  template: openshift-angular-demo-template
+message: OpenShift Angular Demo
+metadata:
+  annotations:
+    description: |-
+      OpenShift Angular Demo
+    iconClass: icon-angularjs
+    openshift.io/display-name: OpenShift Angular Demo
+    openshift.io/provider-display-name: GBM.
+    tags: instant-app
+  labels:
+    samples.operator.openshift.io/managed: "true"
+  name: openshift-angular-demo-template
+objects:
+  - apiVersion: v1
+    kind: Route
+    metadata:
+      name: app
+      annotations:
+        template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
+    spec:
+      tls:
+        termination: edge
+      to:
+        kind: Service
+        name: ${APPLICATION_NAME}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: ${APPLICATION_NAME}
+    spec:
+      selector:
+        app: ${APPLICATION_NAME}
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 4200
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: ${APPLICATION_NAME}
+      labels:
+        app: ${APPLICATION_NAME}
+    spec:
+      replicas: ${{REPLICA_COUNT}}
+      selector:
+        matchLabels:
+          app: ${APPLICATION_NAME}
+      template:
+        metadata:
+          labels:
+            app: ${APPLICATION_NAME}
+        spec:
+          containers:
+            - name: ${APPLICATION_NAME}
+              image: image-registry.openshift-image-registry.svc:5000/demo-images/${APPLICATION_NAME}:latest
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: /
+                  port: 4200
+                  scheme: HTTP
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 10
+              livenessProbe:
+                tcpSocket:
+                  port: 4200
+                initialDelaySeconds: 10
+                periodSeconds: 20
+                failureThreshold: 3
+                successThreshold: 1
+              ports:
+                - containerPort: 4200
+              restartPolicy: Always
+  - apiVersion: v1
+    kind: BuildConfig
+    metadata:
+      name: ${APPLICATION_NAME}
+    spec:
+      runPolicy: Serial
+      source:
+        git:
+          ref: ${GIT_BRANCH}
+          uri: ${GIT_URI}
+        type: Git
+      strategy:
+        type: Docker
+      output:
+        to:
+          kind: ImageStreamTag
+          name: ${APPLICATION_NAME}:latest
+          namespace: demo-images
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      name: ${APPLICATION_NAME}
+      namespace: demo-images
+parameters:
+  - description: The name of the Application
+    displayName: Application Name
+    name: APPLICATION_NAME
+    value: openshift-angular-demo
+  - description: URL to Git Repository
+    displayName: Git URI
+    name: GIT_URI
+    value: "ssh://git@github.com/ucmcdbs/openshift-angular-demo.git"
+  - description: Git Branch
+    displayName: Git Branch
+    name: GIT_BRANCH
+    value: main
+  - description: Number of POD Replicas
+    displayName: Replica Count
+    name: REPLICA_COUNT
+    value: "1"

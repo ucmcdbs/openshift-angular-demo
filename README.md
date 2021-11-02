@@ -38,7 +38,7 @@ Build and package the application into a container. Refer Dockerfile for the ste
 - Set the command to run Caddy with the app folder as the root
 - Expose Caddy's port
 
-```
+```bash
 podman build -t openshift-angular-demo:latest .
 ```
 
@@ -47,6 +47,30 @@ NPM repository for better performance and reduced access over internet.
 
 ### Run Locally
 
-```
+```bash
 podman run -p 4200:4200 openshift-angular-demo:latest
 ```
+
+### Deploy in OpenShift
+
+Create Kubernetes objects using OpenShift Template
+
+- ImageStream
+- BuildConfig
+- Deployment
+- Service
+- Route
+
+```bash
+oc policy add-role-to-group system:image-builder system:serviceaccounts:openshift-angular-demo -n demo-images
+oc process -f template.yaml | oc apply -n openshift-demo -f-
+```
+
+### Build and Deploy in OpenShift
+
+```
+oc start-build openshift-angular-demo --follow -n openshift-demo
+oc rollout restart deployment/openshift-angular-demo -n openshift-demo
+```
+
+Visit https://openshift-angular-demo-openshift-demo.apps.{openshift-domain}
